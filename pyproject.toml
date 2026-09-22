@@ -1,6 +1,6 @@
 [project]
 name = "lexneedle"
-version = "0.1.0"
+version = "0.1.1"
 description = "Deterministic Unicode-aware dictionary matching"
 readme = "README.md"
 authors = [
@@ -19,16 +19,19 @@ classifiers = [
     "Intended Audience :: Developers",
     "Operating System :: OS Independent",
     "Programming Language :: Python :: 3 :: Only",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
     "Programming Language :: Python :: 3.14",
     "Topic :: Text Processing :: General",
     "Typing :: Typed",
 ]
 license = "MIT"
 license-files = ["LICENSE", "NOTICE.md"]
-requires-python = ">=3.14"
+requires-python = ">=3.12"
 dependencies = []
 
 [project.urls]
+Documentation = "https://lexneedle.readthedocs.io/"
 Repository = "https://github.com/crootman/LexNeedle"
 Issues = "https://github.com/crootman/LexNeedle/issues"
 Changelog = "https://github.com/crootman/LexNeedle/blob/main/CHANGELOG.md"
@@ -46,9 +49,14 @@ dev = [
     "ruff>=0.16.8",
     "ty>=0.0.83",
 ]
+docs = [
+    "furo>=2025.12.19",
+    "myst-parser>=5.1.0",
+    "sphinx>=9.1.0",
+]
 
 [tool.ruff]
-target-version = "py314"
+target-version = "py312"
 line-length = 100
 src = ["src"]
 extend-exclude = [".codex"]

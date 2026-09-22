@@ -6,7 +6,7 @@ easy to review and maintain.
 
 ## Non-negotiable constraints
 
-- Support Python 3.14 and later. Use Python 3.14 features only when they make
+- Support Python 3.12 and later. Use Python 3.12 features only when they make
   the public code clearer; do not add compatibility shims for older Python.
 - Keep production dependencies in the standard library unless a maintainer
   explicitly approves a user-facing dependency.

@@ -1,7 +1,7 @@
 # Contributing
 
 LexNeedle is a pure-Python, deterministic, Unicode-aware dictionary matcher for
-Python 3.14 and later. Contributions should stay small, readable, and
+Python 3.12 and later. Contributions should stay small, readable, and
 reviewable; production code uses only the standard library.
 
 ## Setup
@@ -23,6 +23,7 @@ uv run ruff format --check .
 uv run ruff check .
 uv run ty check
 uv run pytest
+uv run sphinx-build -W --keep-going -b html docs docs/_build/html
 uv build
 ```
 
