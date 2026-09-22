@@ -11,7 +11,14 @@ from typing import Literal
 from .boundaries import Boundary, no_boundary, word_boundary
 from .exceptions import ConfigurationError
 from .match import Match
-from .normalize import Normalization, Provenance, TransformedText, transform, validate_normalization
+from .normalize import (
+    Normalization,
+    Provenance,
+    TransformedText,
+    transform,
+    transform_key,
+    validate_normalization,
+)
 from .trie import Term, Trie
 
 type Strategy = Literal["all", "longest", "leftmost_longest"]
@@ -228,7 +235,13 @@ class Matcher:
         return "".join(parts)
 
     def save(self, path: str | Path) -> None:
-        """Save this matcher as versioned, lossless JSON."""
+        """Save as versioned, lossless JSON using same-directory atomic replacement.
+
+        Saving through a symlink replaces its target and preserves an existing
+        target's POSIX mode bits. A new file uses mode ``0o600`` on POSIX,
+        subject to the process umask. Atomic replacement does not guarantee
+        durability if the system loses power.
+        """
         from .serialization import save
 
         save(self, path)
@@ -241,9 +254,9 @@ class Matcher:
         return load(path)
 
     def _key(self, keyword: str) -> str:
-        return transform(
+        return transform_key(
             keyword, normalization=self.unicode_normalization, case_sensitive=self.case_sensitive
-        ).text
+        )
 
     def _iter_candidates(self, source: str, transformed: TransformedText) -> Iterator[Match]:
         extents = self._group_extents(transformed)

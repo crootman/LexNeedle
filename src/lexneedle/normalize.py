@@ -49,13 +49,12 @@ def transform(text: str, *, normalization: Normalization, case_sensitive: bool) 
     """Transform *text* using the matcher pipeline and retain source provenance."""
     validate_normalization(normalization)
     if normalization is None:
-        units = [_Unit(character, index, index + 1, index) for index, character in enumerate(text)]
-    else:
-        compatibility = normalization in {"NFKC", "NFKD"}
-        units = _decompose(text, compatibility=compatibility)
-        units = _canonical_order(units)
-        if normalization in {"NFC", "NFKC"}:
-            units = _compose(units)
+        return _transform_without_normalization(text, case_sensitive=case_sensitive)
+    compatibility = normalization in {"NFKC", "NFKD"}
+    units = _decompose(text, compatibility=compatibility)
+    units = _canonical_order(units)
+    if normalization in {"NFC", "NFKC"}:
+        units = _compose(units)
     output: list[str] = []
     provenance: list[Provenance] = []
     for unit in units:
@@ -70,6 +69,30 @@ def transform(text: str, *, normalization: Normalization, case_sensitive: bool) 
     if result != expected:
         raise RuntimeError("internal Unicode transformation did not match unicodedata")
     return TransformedText(result, tuple(provenance))
+
+
+def transform_key(text: str, *, normalization: Normalization, case_sensitive: bool) -> str:
+    """Transform dictionary and lookup text when source provenance is unnecessary."""
+    validate_normalization(normalization)
+    result = text if normalization is None else unicodedata.normalize(_form(normalization), text)
+    return result if case_sensitive else result.casefold()
+
+
+def _transform_without_normalization(text: str, *, case_sensitive: bool) -> TransformedText:
+    """Transform text with its one-code-point-per-source provenance mapping."""
+    if case_sensitive or text.isascii():
+        provenance = tuple(Provenance(index, index + 1, index) for index in range(len(text)))
+        if case_sensitive:
+            return TransformedText(text, provenance)
+        return TransformedText(text.casefold(), provenance)
+    output: list[str] = []
+    expanded_provenance: list[Provenance] = []
+    for index, character in enumerate(text):
+        folded = character.casefold()
+        for output_character in folded:
+            output.append(output_character)
+            expanded_provenance.append(Provenance(index, index + 1, index))
+    return TransformedText("".join(output), tuple(expanded_provenance))
 
 
 def _decompose(text: str, *, compatibility: bool) -> list[_Unit]:

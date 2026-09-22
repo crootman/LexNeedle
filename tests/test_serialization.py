@@ -1,8 +1,11 @@
 import json
+import os
+from errno import ENAMETOOLONG
+from pathlib import Path
 
 import pytest
 
-from lexneedle import Matcher, SerializationError
+from lexneedle import Matcher, SerializationError, serialization
 
 
 def test_json_round_trip_preserves_configuration_and_terms(tmp_path) -> None:
@@ -25,6 +28,159 @@ def test_save_does_not_truncate_existing_file_when_value_is_not_json(tmp_path) -
     with pytest.raises(SerializationError, match="losslessly"):
         matcher.save(path)
     assert path.read_text(encoding="utf-8") == "keep me"
+
+
+def test_save_replaces_existing_file_after_writing_temporary_file(tmp_path) -> None:
+    path = tmp_path / "terms.json"
+    path.write_text("old", encoding="utf-8")
+    matcher = Matcher()
+    matcher.add("term", {"value": 1})
+
+    matcher.save(path)
+
+    assert json.loads(path.read_text(encoding="utf-8"))["terms"] == [
+        {"keyword": "term", "metadata": None, "value": {"value": 1}}
+    ]
+    assert list(tmp_path.iterdir()) == [path]
+
+
+def test_save_supports_a_relative_destination_path(tmp_path, monkeypatch) -> None:
+    monkeypatch.chdir(tmp_path)
+    matcher = Matcher()
+    matcher.add("term", "value")
+
+    matcher.save("terms.json")
+
+    assert Matcher.load("terms.json").find("term")[0].value == "value"
+
+
+def test_save_and_load_supports_a_near_name_max_filename(tmp_path) -> None:
+    path = tmp_path / ("x" * 240 + ".json")
+    matcher = Matcher()
+    matcher.add("term", "value")
+
+    try:
+        matcher.save(path)
+    except OSError as error:
+        if error.errno == ENAMETOOLONG:
+            pytest.skip("filesystem does not support a 245-byte filename")
+        raise
+
+    assert Matcher.load(path).find("term")[0].value == "value"
+
+
+@pytest.mark.skipif(os.name != "posix", reason="POSIX permission bits are unavailable")
+def test_save_preserves_existing_permissions(tmp_path) -> None:
+    target = tmp_path / "terms.json"
+    target.write_text("old", encoding="utf-8")
+    target.chmod(0o640)
+    matcher = Matcher()
+    matcher.add("term", "value")
+
+    matcher.save(target)
+
+    assert json.loads(target.read_text(encoding="utf-8"))["terms"][0]["keyword"] == "term"
+    assert target.stat().st_mode & 0o777 == 0o640
+
+
+def test_save_follows_existing_symlink(tmp_path) -> None:
+    target = tmp_path / "terms.json"
+    target.write_text("old", encoding="utf-8")
+    link = tmp_path / "terms-link.json"
+    try:
+        link.symlink_to(target)
+    except (NotImplementedError, OSError) as error:
+        pytest.skip(f"symlinks are unavailable: {error}")
+    matcher = Matcher()
+    matcher.add("term", "value")
+
+    matcher.save(link)
+
+    assert link.is_symlink()
+    assert json.loads(target.read_text(encoding="utf-8"))["terms"][0]["keyword"] == "term"
+
+
+@pytest.mark.parametrize("error", [OSError("injected write failure"), KeyboardInterrupt()])
+def test_save_preserves_existing_file_when_temporary_write_fails(
+    tmp_path, monkeypatch, error
+) -> None:
+    path = tmp_path / "terms.json"
+    path.write_text("original", encoding="utf-8")
+    matcher = Matcher()
+    matcher.add("term", "value")
+
+    class FailingTemporaryFile:
+        name = str(tmp_path / ".lexneedle-write-failure.tmp")
+
+        def __enter__(self) -> FailingTemporaryFile:
+            Path(self.name).touch()
+            return self
+
+        def __exit__(self, *args: object) -> None:
+            return None
+
+        def write(self, value: str) -> int:
+            raise error
+
+    monkeypatch.setattr(
+        serialization.tempfile, "NamedTemporaryFile", lambda **_kwargs: FailingTemporaryFile()
+    )
+
+    with pytest.raises(type(error)):
+        matcher.save(path)
+
+    assert path.read_text(encoding="utf-8") == "original"
+    assert list(tmp_path.iterdir()) == [path]
+
+
+def test_save_preserves_existing_file_when_replacement_fails(tmp_path, monkeypatch) -> None:
+    path = tmp_path / "terms.json"
+    path.write_text("original", encoding="utf-8")
+    matcher = Matcher()
+    matcher.add("term", "value")
+
+    def fail_replace(source: Path, destination: Path) -> None:
+        assert destination == path
+        assert source.parent == path.parent
+        raise OSError("injected replacement failure")
+
+    monkeypatch.setattr(serialization.Path, "replace", fail_replace)
+
+    with pytest.raises(OSError, match="injected replacement failure"):
+        matcher.save(path)
+
+    assert path.read_text(encoding="utf-8") == "original"
+    assert list(tmp_path.iterdir()) == [path]
+
+
+def test_save_preserves_existing_file_when_temporary_close_fails(tmp_path, monkeypatch) -> None:
+    path = tmp_path / "terms.json"
+    path.write_text("original", encoding="utf-8")
+    matcher = Matcher()
+    matcher.add("term", "value")
+
+    class CloseFailingTemporaryFile:
+        name = str(tmp_path / ".lexneedle-close-failure.tmp")
+
+        def __enter__(self) -> CloseFailingTemporaryFile:
+            Path(self.name).touch()
+            return self
+
+        def __exit__(self, *args: object) -> None:
+            raise OSError("injected close failure")
+
+        def write(self, value: str) -> int:
+            return len(value)
+
+    monkeypatch.setattr(
+        serialization.tempfile, "NamedTemporaryFile", lambda **_kwargs: CloseFailingTemporaryFile()
+    )
+
+    with pytest.raises(OSError, match="injected close failure"):
+        matcher.save(path)
+
+    assert path.read_text(encoding="utf-8") == "original"
+    assert list(tmp_path.iterdir()) == [path]
 
 
 @pytest.mark.parametrize(

@@ -1,10 +1,11 @@
 import unicodedata
+from random import Random
 from typing import Literal
 
 import pytest
 
 from lexneedle import Matcher
-from lexneedle.normalize import transform
+from lexneedle.normalize import Provenance, transform, transform_key
 
 
 @pytest.mark.parametrize("form", ["NFC", "NFD", "NFKC", "NFKD"])
@@ -63,3 +64,67 @@ def test_longest_groups_reordered_candidates_by_original_start() -> None:
     assert [(match.start, match.end) for match in matcher.find(source, strategy="longest")] == [
         (0, 3)
     ]
+
+
+@pytest.mark.parametrize("case_sensitive", [False, True])
+def test_transform_without_normalization_keeps_exact_provenance(
+    case_sensitive: bool,
+) -> None:
+    alphabet = "AaZzßİΣςé\u0301👩\u200d"
+    generator = Random(731)
+    for _ in range(100):
+        text = "".join(generator.choice(alphabet) for _ in range(40))
+        actual = transform(text, normalization=None, case_sensitive=case_sensitive)
+        expected = text if case_sensitive else text.casefold()
+        expected_provenance = tuple(
+            Provenance(index, index + 1, index)
+            for index, character in enumerate(text)
+            for _ in (character if case_sensitive else character.casefold())
+        )
+
+        assert actual.text == expected
+        assert actual.provenance == expected_provenance
+
+
+@pytest.mark.parametrize("normalization", [None, "NFC", "NFD", "NFKC", "NFKD"])
+@pytest.mark.parametrize("case_sensitive", [False, True])
+def test_transform_key_matches_the_unicode_pipeline(
+    normalization: Literal["NFC", "NFD", "NFKC", "NFKD"] | None,
+    case_sensitive: bool,
+) -> None:
+    generator = Random(919)
+    alphabet = "AaZzßİΣςé\u0301\uff21가"
+    for _ in range(100):
+        text = "".join(generator.choice(alphabet) for _ in range(40))
+        expected = text if normalization is None else unicodedata.normalize(normalization, text)
+        if not case_sensitive:
+            expected = expected.casefold()
+
+        assert (
+            transform_key(text, normalization=normalization, case_sensitive=case_sensitive)
+            == expected
+        )
+
+
+@pytest.mark.parametrize("normalization", [None, "NFC", "NFD", "NFKC", "NFKD"])
+@pytest.mark.parametrize("case_sensitive", [False, True])
+def test_seeded_terms_match_their_original_source_across_transformations(
+    normalization: Literal["NFC", "NFD", "NFKC", "NFKD"] | None,
+    case_sensitive: bool,
+) -> None:
+    generator = Random(457)
+    alphabet = "AaZzßİΣςé\u0301\uff21가"
+    for _ in range(50):
+        source = "".join(generator.choice(alphabet) for _ in range(20))
+        matcher = Matcher(
+            case_sensitive=case_sensitive,
+            unicode_normalization=normalization,
+            boundary="none",
+        )
+        matcher.add(source, value="value")
+
+        for strategy in ("all", "longest", "leftmost_longest"):
+            assert [
+                (match.keyword, match.text, match.value, match.start, match.end)
+                for match in matcher.find(source, strategy=strategy)
+            ] == [(source, source, "value", 0, len(source))]

@@ -43,7 +43,11 @@ class Trie:
     def set(self, key: str, term: Term) -> None:
         node = self.root
         for character in key:
-            node = node.children.setdefault(character, Node())
+            child = node.children.get(character)
+            if child is None:
+                child = Node()
+                node.children[character] = child
+            node = child
         node.term = term
 
     def remove(self, key: str) -> bool:

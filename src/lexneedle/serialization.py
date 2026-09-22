@@ -4,6 +4,9 @@ from __future__ import annotations
 
 import json
 import math
+import stat
+import tempfile
+from contextlib import suppress
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -16,10 +19,13 @@ FORMAT_VERSION = 1
 
 
 def save(matcher: Matcher, path: str | Path) -> None:
-    """Serialize *matcher* atomically with respect to invalid in-memory values.
+    """Serialize *matcher* by atomically replacing the destination file.
 
-    Encoding occurs before the destination is opened, so an unsupported value can
-    never truncate an existing file.
+    Encoding and writing occur before replacement, so invalid values and write
+    failures cannot truncate an existing destination. Symlink destinations are
+    resolved before replacement, preserving write-through behavior and existing
+    target's POSIX mode bits. This does not make the save durable against power
+    loss or preserve ownership or ACLs.
     """
     if callable(matcher.boundary):
         raise SerializationError("matchers with callable boundaries cannot be serialized")
@@ -50,10 +56,34 @@ def save(matcher: Matcher, path: str | Path) -> None:
         raise SerializationError(
             "matcher contains a value that JSON cannot represent losslessly"
         ) from error
+    destination = Path(path)
+    if destination.is_symlink():
+        destination = destination.resolve()
     try:
-        Path(path).write_text(encoded, encoding="utf-8")
-    except OSError:
-        raise
+        mode = stat.S_IMODE(destination.stat().st_mode)
+    except FileNotFoundError:
+        mode = None
+    temporary_path: Path | None = None
+    replaced = False
+    try:
+        with tempfile.NamedTemporaryFile(
+            mode="w",
+            encoding="utf-8",
+            dir=destination.parent,
+            prefix=".lexneedle-",
+            suffix=".tmp",
+            delete=False,
+        ) as temporary:
+            temporary_path = Path(temporary.name)
+            if mode is not None:
+                temporary_path.chmod(mode)
+            temporary.write(encoded)
+        temporary_path.replace(destination)
+        replaced = True
+    finally:
+        if not replaced and temporary_path is not None:
+            with suppress(OSError):
+                temporary_path.unlink()
 
 
 def load(path: str | Path) -> Matcher:
