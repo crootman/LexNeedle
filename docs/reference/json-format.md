@@ -1,8 +1,9 @@
 # JSON matcher definition format
 
-`Matcher.save()` currently writes format version 2. `Matcher.load()` accepts
-versions 1 and 2; version 1 has exact whitespace matching because it predates
-the `whitespace_equivalent` setting.
+`Matcher.save()` currently writes format version 2. `Matcher.load()` also
+accepts an unpublished version 1 compatibility schema. No published LexNeedle
+release wrote version 1; the reader treats its missing `whitespace_equivalent`
+setting as `false`.
 
 ```json
 {

@@ -50,21 +50,21 @@ assert text[match.start : match.end] == match.text
 
 ## Documentation
 
-The full documentation covers [getting started], [redacting known identifiers],
-[tagging documents], [Unicode and offsets], [boundaries and overlap strategies],
-[replacement], [JSON persistence], [FlashText migration], [API reference], and
-[performance limits].
+The documentation sources cover [getting started], [redacting known
+identifiers], [tagging documents], [Unicode and offsets], [boundaries and
+overlap strategies], [replacement], [JSON persistence], [FlashText migration],
+[API reference], and [performance limits].
 
-[getting started]: https://lexneedle.readthedocs.io/en/stable/getting-started.html
-[redacting known identifiers]: https://lexneedle.readthedocs.io/en/stable/tutorials/redact-known-values.html
-[tagging documents]: https://lexneedle.readthedocs.io/en/stable/tutorials/tag-documents.html
-[Unicode and offsets]: https://lexneedle.readthedocs.io/en/stable/explanation/unicode-and-offsets.html
-[boundaries and overlap strategies]: https://lexneedle.readthedocs.io/en/stable/how-to/matching-policies.html
-[replacement]: https://lexneedle.readthedocs.io/en/stable/how-to/replacement.html
-[JSON persistence]: https://lexneedle.readthedocs.io/en/stable/how-to/persistence.html
-[FlashText migration]: https://lexneedle.readthedocs.io/en/stable/how-to/flashtext-migration.html
-[API reference]: https://lexneedle.readthedocs.io/en/stable/reference/api.html
-[performance limits]: https://lexneedle.readthedocs.io/en/stable/explanation/performance-and-limits.html
+[getting started]: https://github.com/crootman/LexNeedle/blob/main/docs/getting-started.md
+[redacting known identifiers]: https://github.com/crootman/LexNeedle/blob/main/docs/tutorials/redact-known-values.md
+[tagging documents]: https://github.com/crootman/LexNeedle/blob/main/docs/tutorials/tag-documents.md
+[Unicode and offsets]: https://github.com/crootman/LexNeedle/blob/main/docs/explanation/unicode-and-offsets.md
+[boundaries and overlap strategies]: https://github.com/crootman/LexNeedle/blob/main/docs/how-to/matching-policies.md
+[replacement]: https://github.com/crootman/LexNeedle/blob/main/docs/how-to/replacement.md
+[JSON persistence]: https://github.com/crootman/LexNeedle/blob/main/docs/how-to/persistence.md
+[FlashText migration]: https://github.com/crootman/LexNeedle/blob/main/docs/how-to/flashtext-migration.md
+[API reference]: https://github.com/crootman/LexNeedle/blob/main/docs/reference/api.md
+[performance limits]: https://github.com/crootman/LexNeedle/blob/main/docs/explanation/performance-and-limits.md
 
 ## Development
 
@@ -79,5 +79,8 @@ uv run sphinx-build -W --keep-going -b html docs docs/_build/html
 uv build
 ```
 
-See [CONTRIBUTING.md](CONTRIBUTING.md) for contribution guidance and
-[docs/releasing.md](docs/releasing.md) for the release checklist.
+See the [contribution guide] for development guidance and the [release
+checklist] for the maintainer workflow.
+
+[contribution guide]: https://github.com/crootman/LexNeedle/blob/main/CONTRIBUTING.md
+[release checklist]: https://github.com/crootman/LexNeedle/blob/main/docs/releasing.md

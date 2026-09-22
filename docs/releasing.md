@@ -31,6 +31,10 @@ of truth for automation.
    any changed behavior, errors, compatibility, or limitations.
 5. Confirm that no generated files, local configuration, credentials, or
    unrelated changes are included.
+6. Verify every documentation URL advertised by the README and package metadata
+   resolves to the intended content. For separately hosted documentation,
+   confirm the release's `stable` and development `latest` builds before
+   publishing. Do not publish a release whose documentation links are dead.
 
 Run the locked quality gate:
 
@@ -67,9 +71,10 @@ changes.
 ## 2. Review and merge
 
 Commit the version, changelog, and associated documentation together. Push the
-commit and wait for all required GitHub CI jobs to pass. Confirm that `main`
-points to the exact commit intended for release and that the release tag does
-not already exist.
+commit and wait for all required GitHub CI jobs to pass. Recheck advertised
+documentation URLs from the pushed commit. Confirm that `main` points to the
+exact commit intended for release and that the release tag does not already
+exist.
 
 The PyPI Trusted Publisher must remain constrained to these public identifiers:
 
