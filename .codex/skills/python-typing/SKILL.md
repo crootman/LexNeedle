@@ -1,6 +1,6 @@
 ---
 name: python-typing
-description: Write, review, or configure typed Python 3.14+ for LexNeedle with ty. Use when changing annotations, generics, protocols, public API contracts, or type-checker configuration.
+description: Write, review, or configure typed Python 3.12+ for LexNeedle with ty. Use when changing annotations, generics, protocols, public API contracts, or type-checker configuration.
 ---
 
 # Python Typing with ty
@@ -15,7 +15,7 @@ library contract, not decoration.
 - Prefer built-in generics, `X | None`, `typing.Self`, and `typing.Protocol`
   where they express the real contract. Avoid `Any`; use `object`, a type
   parameter, or a protocol instead.
-- Python 3.14 permits PEP 695 syntax. Use it only when a generic abstraction is
+- Python 3.12 permits PEP 695 syntax. Use it only when a generic abstraction is
   already justified; a one-use type variable or class hierarchy is not an
   improvement.
 - Keep runtime imports and annotation imports deliberate. Use
@@ -25,7 +25,7 @@ library contract, not decoration.
 
 ## Configuration and verification
 
-`ty` reads `[tool.ty]` from `pyproject.toml` and infers Python 3.14 from
+`ty` reads `[tool.ty]` from `pyproject.toml` and infers Python 3.12 from
 `project.requires-python`. Add configuration only for a demonstrated rule,
 environment root, or exclusion; do not copy a strictness template blindly.
 

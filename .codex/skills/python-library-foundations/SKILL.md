@@ -1,12 +1,12 @@
 ---
 name: python-library-foundations
-description: Configure, package, or modernize LexNeedle as a pure-Python library with Python 3.14+, uv, Ruff, ty, pytest, and uv_build. Use when changing project tooling, pyproject.toml, package layout, dependencies, or CI quality gates.
+description: Configure, package, or modernize LexNeedle as a pure-Python library with Python 3.12+, uv, Ruff, ty, pytest, and uv_build. Use when changing project tooling, pyproject.toml, package layout, dependencies, or CI quality gates.
 ---
 
 # Python Library Foundations
 
 Use the smallest conventional Python setup that produces a maintainable,
-distributable library. LexNeedle targets Python 3.14 and later.
+distributable library. LexNeedle targets Python 3.12 and later.
 
 ## Project contract
 
@@ -24,7 +24,7 @@ Keep configuration in `pyproject.toml` and make its target explicit:
 
 ```toml
 [project]
-requires-python = ">=3.14"
+requires-python = ">=3.12"
 dependencies = []
 
 [build-system]
@@ -32,7 +32,7 @@ requires = ["uv_build>=0.12.17,<0.13.0"]
 build-backend = "uv_build"
 
 [tool.ruff]
-target-version = "py314"
+target-version = "py312"
 line-length = 100
 src = ["src"]
 
@@ -58,8 +58,9 @@ real invariant.
 - Use `pathlib`, context managers, module loggers, and narrow chained
   exceptions at actual I/O or failure boundaries. Library code must not
   configure logging or print diagnostic output.
-- Use Python 3.14 syntax when it improves clarity, but do not introduce PEP
-  695 generics or a hierarchy when ordinary annotations or a function suffice.
+- Use Python 3.12 syntax when it improves clarity, but do not introduce a
+  generic abstraction or hierarchy when ordinary annotations or a function
+  suffice.
 
 ## Verification
 

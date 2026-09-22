@@ -31,7 +31,7 @@ the smallest practical remedy. A clean review is valid.
 - Case folding or normalization never exposes transformed-buffer offsets.
 - Boundary, replacement, alias, metadata, and serialization behavior are
   explicit and covered at the public boundary.
-- The implementation remains Python 3.14+, standard-library-only at runtime,
+- The implementation remains Python 3.12+, standard-library-only at runtime,
   and free of needless registries, frameworks, or deep inheritance.
 
 ## AI-change failure-mode scan
@@ -42,7 +42,7 @@ serialization failures, type escapes, and imports not present in the locked
 environment. Do not swallow broad exceptions or convert failures to empty
 results. Never use pickle as the default parser for untrusted data.
 
-Review every new dependency for a standard-library alternative, Python 3.14
+Review every new dependency for a standard-library alternative, Python 3.12
 support, license, maintenance, provenance, and the generated lockfile diff.
 Runtime dependencies require maintainer approval.
 
