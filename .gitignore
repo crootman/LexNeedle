@@ -206,5 +206,7 @@ temp/
 # Kilo
 .kilo/
 
-# Codex
-.codex/
+# Codex local state. Repository-local skills are versioned with the project.
+.codex/*
+!.codex/skills/
+!.codex/skills/**

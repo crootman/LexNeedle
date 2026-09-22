@@ -1,16 +1,15 @@
 [project]
 name = "lexneedle"
 version = "0.1.0"
-description = "Add your description here"
+description = "Deterministic Unicode-aware dictionary matching"
 readme = "README.md"
 authors = [
     { name = "crootman", email = "5169934+crootman@users.noreply.github.com" }
 ]
+license = "MIT"
+license-files = ["LICENSE", "NOTICE.md"]
 requires-python = ">=3.14"
 dependencies = []
-
-[project.scripts]
-lexneedle = "lexneedle:main"
 
 [build-system]
 requires = ["uv_build>=0.12.17,<0.13.0"]
@@ -29,6 +28,7 @@ dev = [
 target-version = "py314"
 line-length = 100
 src = ["src"]
+extend-exclude = [".codex"]
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP", "B", "SIM", "C4", "PTH", "RUF"]
