@@ -2,6 +2,8 @@
 
 This file records notable user-facing changes to LexNeedle.
 
+## [Unreleased]
+
 ## [0.1.0] - 2026-09-22
 
 ### Added
@@ -21,4 +23,5 @@ This file records notable user-facing changes to LexNeedle.
 - Complete type information, including the `py.typed` marker, with no runtime
   dependencies.
 
+[Unreleased]: https://github.com/crootman/LexNeedle/compare/v0.1.0...HEAD
 [0.1.0]: https://github.com/crootman/LexNeedle/releases/tag/v0.1.0

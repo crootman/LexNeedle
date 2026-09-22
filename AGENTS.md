@@ -38,6 +38,19 @@ Run focused tests while iterating, then the relevant final checks. Do not
 claim a command passed unless it was run. Inspect wheel and source-distribution
 contents before a release.
 
+## Release work
+
+Read `docs/releasing.md` before preparing or reviewing a release. Start with a
+read-only preflight and report blockers before changing versions or release
+notes. Never create or push a tag, create a GitHub Release, or publish to a
+package index without explicit maintainer confirmation for that specific
+release. Do not upload from a workstation; releases publish through the
+tag-triggered GitHub Actions workflow and PyPI Trusted Publishing.
+
+Confirm that the release commit, `pyproject.toml` version, changelog entry, and
+tag agree. Treat published artifacts and tags as immutable. Never record access
+tokens, account details, or other private release information in the repository.
+
 ## Library contracts
 
 - Public APIs must be fully typed and documented where callers need behavior,

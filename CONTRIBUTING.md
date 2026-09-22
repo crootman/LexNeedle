@@ -64,14 +64,7 @@ skills under `.codex/skills/` are intentionally versioned.
 
 ## Releasing
 
-Releases are tag-driven. The maintainer:
-
-1. updates the version in `pyproject.toml` and prepares release notes;
-2. runs the full gate above and inspects `dist/`;
-3. pushes a `vX.Y.Z` tag.
-
-`.github/workflows/release.yml` then verifies the tag against the project
-version, reruns the gate, smoke-tests both distributions in isolated
-environments, and publishes with PyPI Trusted Publishing. The repository needs
-a `pypi` environment and a matching Trusted Publisher configured on PyPI before
-the first release; no long-lived token is stored.
+Releases are tag-driven and publish through PyPI Trusted Publishing; no
+long-lived publishing token is stored. Maintainers should follow the complete
+[release checklist](docs/releasing.md), including the separate preflight,
+publication, and post-release verification stages.
