@@ -57,4 +57,4 @@ class KeywordProcessor:
         return self._matcher.get(keyword)
 
     def get_all_keywords(self) -> dict[str, object]:
-        return {term.keyword: term.value for term in self._matcher._keys.values()}
+        return dict(self._matcher.items())

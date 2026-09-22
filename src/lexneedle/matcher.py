@@ -91,6 +91,15 @@ class Matcher:
         """Return whether *keyword* is registered under this matcher's policy."""
         return isinstance(keyword, str) and self._key(keyword) in self._keys
 
+    def __iter__(self) -> Iterator[str]:
+        """Yield registered keywords in sorted order, independent of insertion order."""
+        return iter(sorted(term.keyword for term in self._keys.values()))
+
+    def items(self) -> Iterator[tuple[str, object]]:
+        """Yield ``(keyword, value)`` pairs in keyword order."""
+        terms = sorted(self._keys.values(), key=lambda term: term.keyword)
+        return ((term.keyword, term.value) for term in terms)
+
     def add(
         self,
         keyword: str | Iterable[str],
@@ -184,15 +193,18 @@ class Matcher:
             raise TypeError("text must be a string")
         selected_strategy = self.strategy if strategy is None else strategy
         self._validate_strategy(selected_strategy)
+        return self._iter_matches(text, selected_strategy)
+
+    def _iter_matches(self, text: str, strategy: Strategy) -> Iterator[Match]:
         transformed = transform(
             text, normalization=self.unicode_normalization, case_sensitive=self.case_sensitive
         )
-        if selected_strategy == "all":
+        if strategy == "all":
             yield from sorted(
                 self._iter_candidates(text, transformed),
                 key=lambda match: (match.start, -match.end, match.keyword),
             )
-        elif selected_strategy == "longest":
+        elif strategy == "longest":
             # Canonical reordering can make distinct transformed starts map to
             # the same source start. Resolve this strategy in source space.
             yield from self._longest_per_start(list(self._iter_candidates(text, transformed)))
@@ -218,6 +230,12 @@ class Matcher:
         Without a callable replacement each canonical value must already be a
         string. This prevents accidental conversion of structured values.
         """
+        if (
+            replacement is not None
+            and not isinstance(replacement, str)
+            and not callable(replacement)
+        ):
+            raise TypeError("replacement must be a string, a callable, or None")
         selected_strategy = self.strategy if strategy is None else strategy
         if selected_strategy != "leftmost_longest":
             raise ConfigurationError("replacement requires strategy='leftmost_longest'")
@@ -247,9 +265,12 @@ class Matcher:
         """Save as versioned, lossless JSON using same-directory atomic replacement.
 
         Saving through a symlink replaces its target and preserves an existing
-        target's POSIX mode bits. A new file uses mode ``0o600`` on POSIX,
-        subject to the process umask. Atomic replacement does not guarantee
-        durability if the system loses power.
+        target's POSIX mode bits; a symlink retargeted between resolution and
+        replacement can still send the write elsewhere. A new file uses mode
+        ``0o600`` on POSIX, subject to the process umask. Atomic replacement
+        does not guarantee durability if the system loses power, and a crash
+        between writing the temporary file and replacing the destination can
+        leave a ``.lexneedle-*.tmp`` file beside the target.
         """
         from .serialization import save
 

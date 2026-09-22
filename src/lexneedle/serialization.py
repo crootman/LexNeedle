@@ -8,9 +8,10 @@ import stat
 import tempfile
 from contextlib import suppress
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, cast
 
-from .exceptions import SerializationError
+from .exceptions import ConfigurationError, SerializationError
+from .normalize import Normalization, validate_normalization
 
 if TYPE_CHECKING:
     from .matcher import Matcher
@@ -24,8 +25,11 @@ def save(matcher: Matcher, path: str | Path) -> None:
     Encoding and writing occur before replacement, so invalid values and write
     failures cannot truncate an existing destination. Symlink destinations are
     resolved before replacement, preserving write-through behavior and existing
-    target's POSIX mode bits. This does not make the save durable against power
-    loss or preserve ownership or ACLs.
+    target's POSIX mode bits; a symlink retargeted between resolution and
+    replacement can still send the write elsewhere. This does not make the save
+    durable against power loss or preserve ownership or ACLs. A crash between
+    writing the temporary file and replacing the destination can leave a
+    ``.lexneedle-*.tmp`` file beside the destination.
     """
     if callable(matcher.boundary):
         raise SerializationError("matchers with callable boundaries cannot be serialized")
@@ -91,15 +95,7 @@ def load(path: str | Path) -> Matcher:
     try:
         raw = Path(path).read_text(encoding="utf-8")
         payload = json.loads(raw, object_pairs_hook=_unique_object, parse_constant=_reject_constant)
-    except OSError:
-        raise
-    except (
-        UnicodeDecodeError,
-        ValueError,
-        json.JSONDecodeError,
-        RecursionError,
-        SerializationError,
-    ) as error:
+    except (ValueError, RecursionError) as error:
         raise SerializationError("matcher file is not valid JSON") from error
     try:
         _validate_json_value(payload)
@@ -125,6 +121,10 @@ def load(path: str | Path) -> Matcher:
         raise SerializationError("configuration.case_sensitive must be a boolean")
     if normalization is not None and not isinstance(normalization, str):
         raise SerializationError("configuration.unicode_normalization must be a string or null")
+    try:
+        validate_normalization(normalization)
+    except ConfigurationError as error:
+        raise SerializationError("configuration.unicode_normalization is invalid") from error
     if not isinstance(boundary, str) or boundary not in {"word", "none"}:
         raise SerializationError("configuration.boundary must be 'word' or 'none'")
     if not isinstance(strategy, str) or strategy not in {"all", "longest", "leftmost_longest"}:
@@ -137,7 +137,7 @@ def load(path: str | Path) -> Matcher:
     try:
         matcher = Matcher(
             case_sensitive=case_sensitive,
-            unicode_normalization=normalization,
+            unicode_normalization=cast(Normalization, normalization),
             boundary=boundary,
             strategy=strategy,
         )

@@ -9,7 +9,7 @@ from typing import Literal, cast
 from .exceptions import ConfigurationError
 
 type NormalizationForm = Literal["NFC", "NFD", "NFKC", "NFKD"]
-Normalization = str | None
+type Normalization = NormalizationForm | None
 _NORMALIZATIONS = frozenset({"NFC", "NFD", "NFKC", "NFKD"})
 
 
@@ -38,7 +38,7 @@ class _Unit:
     group: int
 
 
-def validate_normalization(value: Normalization) -> None:
+def validate_normalization(value: object) -> None:
     """Reject unsupported normalization settings."""
     if value is not None and value not in _NORMALIZATIONS:
         message = "unicode_normalization must be None, 'NFC', 'NFD', 'NFKC', or 'NFKD'"
@@ -46,7 +46,12 @@ def validate_normalization(value: Normalization) -> None:
 
 
 def transform(text: str, *, normalization: Normalization, case_sensitive: bool) -> TransformedText:
-    """Transform *text* using the matcher pipeline and retain source provenance."""
+    """Transform *text* using the matcher pipeline and retain source provenance.
+
+    The aligned result is verified against :func:`unicodedata.normalize`; a
+    divergence raises ``RuntimeError`` so an exotic input fails loudly instead
+    of producing misaligned matches.
+    """
     validate_normalization(normalization)
     if normalization is None:
         return _transform_without_normalization(text, case_sensitive=case_sensitive)

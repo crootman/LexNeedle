@@ -10,10 +10,8 @@ def is_word_character(character: str) -> bool:
     """Return whether *character* participates in LexNeedle's word policy."""
     if character in {"\u200c", "\u200d"}:
         return True
-    return (
-        unicodedata.category(character)[0] in {"L", "M", "N"}
-        or unicodedata.category(character) == "Pc"
-    )
+    category = unicodedata.category(character)
+    return category[0] in {"L", "M", "N"} or category == "Pc"
 
 
 def word_boundary(text: str, position: int) -> bool:
