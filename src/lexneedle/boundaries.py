@@ -2,8 +2,10 @@
 
 import unicodedata
 from collections.abc import Callable
+from typing import Literal
 
 Boundary = Callable[[str, int], bool]
+SideBoundary = Callable[[str, int, Literal["left", "right"]], bool]
 
 
 def is_word_character(character: str) -> bool:
@@ -15,7 +17,13 @@ def is_word_character(character: str) -> bool:
 
 
 def word_boundary(text: str, position: int) -> bool:
-    """Return whether *position* is next to a non-word character or an edge."""
+    """Return the legacy position-only word-boundary predicate.
+
+    :class:`~lexneedle.Matcher` evaluates its built-in ``"word"`` policy
+    against the exterior source character on each side of a candidate.  This
+    helper remains available for legacy two-argument custom policies, where a
+    position has no knowledge of which side of a candidate is being checked.
+    """
     return (
         position == 0
         or position == len(text)

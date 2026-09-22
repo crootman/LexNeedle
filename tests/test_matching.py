@@ -51,6 +51,39 @@ def test_word_boundary_blocks_substrings_and_recognises_punctuation() -> None:
     assert [match.text for match in matcher.find("(he), he!")] == ["he", "he"]
 
 
+@pytest.mark.parametrize(
+    ("keyword", "text", "expected"),
+    [
+        ("+", "c++", ["+"]),
+        (".", "a.b", []),
+        (":F50:", "x:F50:y", []),
+        ("café", "(café)!", ["café"]),
+        ("東京", " 東京。", ["東京"]),
+    ],
+)
+def test_word_boundary_checks_only_the_exterior_characters(
+    keyword: str, text: str, expected: list[str]
+) -> None:
+    matcher = Matcher()
+    matcher.add(keyword)
+
+    assert [match.text for match in matcher.find(text)] == expected
+
+
+def test_side_aware_boundary_receives_the_candidate_side() -> None:
+    seen: list[tuple[int, str]] = []
+
+    def boundary(text: str, position: int, side: str) -> bool:
+        seen.append((position, side))
+        return True
+
+    matcher = Matcher(side_boundary=boundary)
+    matcher.add("term")
+
+    assert [match.text for match in matcher.find("term")] == ["term"]
+    assert seen == [(0, "left"), (4, "right")]
+
+
 def test_none_boundary_allows_substrings() -> None:
     matcher = Matcher(boundary="none")
     matcher.add("he")
@@ -91,3 +124,35 @@ def test_default_finditer_does_not_inspect_later_boundary_candidates() -> None:
     matcher.add("term")
 
     assert next(matcher.finditer("term later term")).text == "term"
+
+
+def test_flashtext_prefix_and_shared_prefix_regressions() -> None:
+    matcher = Matcher(boundary="none")
+    matcher.add_many(["ab", "abc", "she", "hers"])
+
+    assert [match.text for match in matcher.find("abx", strategy="all")] == ["ab"]
+    assert [match.text for match in matcher.find("shershe", strategy="all")] == [
+        "she",
+        "hers",
+        "she",
+    ]
+
+
+def test_flashtext_repeated_shared_prefix_phrase_regression() -> None:
+    matcher = Matcher(boundary="none")
+    matcher.add_many(["machine", "machine learning"])
+
+    assert [match.text for match in matcher.find("machine learning machine learning")] == [
+        "machine learning",
+        "machine learning",
+    ]
+
+
+def test_global_longest_is_deterministic_and_non_overlapping() -> None:
+    first = Matcher(boundary="none", strategy="global_longest")
+    second = Matcher(boundary="none", strategy="global_longest")
+    first.add_many(["abc", "ab", "cde"])
+    second.add_many(["cde", "ab", "abc"])
+
+    assert [match.text for match in first.find("abcde")] == ["abc"]
+    assert first.find("abcde") == second.find("abcde")

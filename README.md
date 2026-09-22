@@ -34,15 +34,31 @@ NFC composes `á` in `"a\u0334\u0301"`, but the composed character covers all
 three source code points, so that candidate is intentionally not reported. This
 keeps offsets and re-matching self-consistent. The default `boundary="word"`
 treats Unicode letters, marks, numbers, connector punctuation, and joiners as
-word characters. It is not a full UAX #29 word segmenter. Use `boundary="none"`
-for substring matching or pass a callable receiving `(text, position)`.
+word characters. It checks the exterior character before and after a candidate
+independently, so punctuation inside a registered term cannot make an adjacent
+word character look like a boundary. It is not a full UAX #29 word segmenter.
+Use `boundary="none"` for substring matching, a legacy callable receiving
+`(text, position)`, or `side_boundary=` with `(text, position, "left" | "right")`
+for a side-aware word policy.
 
 The default `leftmost_longest` strategy chooses the earliest match, then the
 longest at that position, and skips overlaps. `all` returns all candidates in
 source order (longer before shorter at the same offset); `longest` keeps the
 longest candidate at each start, including overlaps. Terms that collide after
 normalization/case folding are rejected, ensuring results never depend on
-insertion order.
+insertion order. `global_longest` greedily selects longest candidates across
+the complete input, resolving equal lengths by source position and keyword,
+then returns the non-overlapping selection in source order.
+Its selection pass compares each candidate with every already selected match,
+so it can have quadratic selection work on inputs with many candidates; use
+`leftmost_longest` for high-density workloads because it avoids materializing
+every candidate.
+
+Set `whitespace_equivalent=True` to make every non-empty run of Unicode
+whitespace in a term or input match one separator. It is opt-in and preserves
+the original input slice and offsets; for example, `"New York"` can match
+`"New\u00a0\tYork"`. `replace_with_matches()` returns the replacement result
+and the selected `Match` objects without a second scan.
 
 Aliases can share canonical data:
 
@@ -50,7 +66,8 @@ Aliases can share canonical data:
 matcher.add(["Panadol", "Panadol Osteo"], value="paracetamol")
 ```
 
-`replace()` uses leftmost-longest matching. Values must be strings unless a
+`replace()` uses leftmost-longest matching by default (or `global_longest` if
+configured). Values must be strings unless a
 replacement callable explicitly converts a structured value. `save()` and
 `Matcher.load()` use validated, versioned JSON and reject values JSON cannot
 represent losslessly. Saving writes a temporary file beside the resolved target
@@ -65,6 +82,10 @@ read-only outer mapping.
 
 For FlashText migrations, `lexneedle.compat.flashtext.KeywordProcessor`
 supports the common keyword add, extract, replace, remove, and lookup methods.
+Its `boundary="none"` option enables CJK/substring matching; pass
+`strategy="all"` (or per-call `extract_keywords(..., strategy="all")`) to
+retain overlaps; pass `whitespace_equivalent=True` to match Unicode whitespace
+runs as one separator.
 
 ```python
 matches_by_document = list(matcher.find_many(["Panadol", "none"]))
@@ -126,3 +147,13 @@ frozen concurrent matchers, Aho-Corasick failure links, or memory-optimized
 compiled dictionaries. Matchers are not synchronized: do not mutate one while
 another thread reads it; concurrent reads of an unchanged matcher are safe.
 Benchmarks are supplied as pytest-benchmark workloads; they make no speed claim.
+For large inputs, process the complete text when possible. Independently
+matching arbitrary chunks can miss terms crossing a chunk boundary. There is
+no generally safe fixed overlap when normalization or whitespace equivalence is
+enabled: a normalized term can cover a longer source sequence and a collapsed
+whitespace run has unbounded source length. Callers that chunk input must retain
+enough original text for their own constraints and deduplicate reported spans;
+true streaming remains unsupported. JSON is the safe, versioned persistence
+format.
+Standard-library pickle is supported only for trusted local process transfer;
+all values, metadata, and custom policies must themselves be pickleable.

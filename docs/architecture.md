@@ -15,5 +15,9 @@ Input transformation retains source provenance for each output scalar. A match
 must cover whole contribution groups and transform back to its source slice;
 this rejects partial `ß` case-fold expansions and candidates whose normalization
 composes a starter with a later mark across an intervening non-composing mark.
+When whitespace equivalence is enabled, a Unicode whitespace run becomes one
+search-space separator whose provenance covers the complete original run.
 Mutation is unsynchronized: do not mutate a matcher while another thread uses
 it. Streaming, freezing, and compact compiled dictionaries remain future work.
+The benchmark matrix records retained and peak memory for large dictionaries;
+it is evidence for specific runs, not a memory guarantee.

@@ -83,6 +83,56 @@ def transform_key(text: str, *, normalization: Normalization, case_sensitive: bo
     return result if case_sensitive else result.casefold()
 
 
+def collapse_whitespace(transformed: TransformedText) -> TransformedText:
+    """Collapse every non-empty Unicode whitespace run to one space.
+
+    The returned space covers the complete source interval that contributed to
+    the run.  This preserves source-coordinate matches while allowing a term
+    separator to match tabs, line breaks, non-breaking spaces, and runs of
+    those characters.
+    """
+    output: list[str] = []
+    provenance: list[Provenance] = []
+    index = 0
+    while index < len(transformed.text):
+        character = transformed.text[index]
+        if not character.isspace():
+            output.append(character)
+            item = transformed.provenance[index]
+            provenance.append(item)
+            index += 1
+            continue
+        end = index + 1
+        while end < len(transformed.text) and transformed.text[end].isspace():
+            end += 1
+        run = transformed.provenance[index:end]
+        output.append(" ")
+        provenance.append(
+            Provenance(
+                min(item.start for item in run),
+                max(item.end for item in run),
+                run[0].group,
+            )
+        )
+        index = end
+    return TransformedText("".join(output), tuple(provenance))
+
+
+def collapse_whitespace_key(text: str) -> str:
+    """Return *text* with each non-empty Unicode whitespace run as one space."""
+    output: list[str] = []
+    in_whitespace = False
+    for character in text:
+        if character.isspace():
+            if not in_whitespace:
+                output.append(" ")
+            in_whitespace = True
+        else:
+            output.append(character)
+            in_whitespace = False
+    return "".join(output)
+
+
 def _transform_without_normalization(text: str, *, case_sensitive: bool) -> TransformedText:
     """Transform text with its one-code-point-per-source provenance mapping."""
     if case_sensitive or text.isascii():

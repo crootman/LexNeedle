@@ -19,6 +19,46 @@ def test_json_round_trip_preserves_configuration_and_terms(tmp_path) -> None:
     assert loaded.find("cafe\u0301", strategy="all") == matcher.find("cafe\u0301", strategy="all")
 
 
+def test_v1_json_loads_with_exact_whitespace_matching(tmp_path) -> None:
+    path = tmp_path / "v1.json"
+    path.write_text(
+        json.dumps(
+            {
+                "format_version": 1,
+                "configuration": {
+                    "case_sensitive": False,
+                    "unicode_normalization": None,
+                    "boundary": "none",
+                    "strategy": "leftmost_longest",
+                },
+                "terms": [{"keyword": "New York", "value": "NY", "metadata": None}],
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    loaded = Matcher.load(path)
+
+    assert not loaded.whitespace_equivalent
+    assert loaded.find("New York")
+    assert loaded.find("New\tYork") == []
+
+
+def test_save_rejects_side_boundary_without_overwriting_existing_file(tmp_path) -> None:
+    path = tmp_path / "terms.json"
+    path.write_text("original", encoding="utf-8")
+
+    def side_boundary(_: str, __: int, ___: str) -> bool:
+        return True
+
+    matcher = Matcher(side_boundary=side_boundary)
+    matcher.add("term")
+
+    with pytest.raises(SerializationError, match="callable boundary"):
+        matcher.save(path)
+    assert path.read_text(encoding="utf-8") == "original"
+
+
 def test_save_does_not_truncate_existing_file_when_value_is_not_json(tmp_path) -> None:
     path = tmp_path / "terms.json"
     path.write_text("keep me", encoding="utf-8")
@@ -265,6 +305,7 @@ def test_json_surrogates_round_trip_without_encoding_the_output_file(tmp_path) -
         ("unicode_normalization", "bad"),
         ("unicode_normalization", "nfc"),
         ("case_sensitive", 1),
+        ("whitespace_equivalent", 1),
     ],
 )
 def test_load_rejects_wrong_configuration_types(tmp_path, field, value) -> None:

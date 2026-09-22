@@ -16,7 +16,7 @@ from .normalize import Normalization, validate_normalization
 if TYPE_CHECKING:
     from .matcher import Matcher
 
-FORMAT_VERSION = 1
+FORMAT_VERSION = 2
 
 
 def save(matcher: Matcher, path: str | Path) -> None:
@@ -31,8 +31,8 @@ def save(matcher: Matcher, path: str | Path) -> None:
     writing the temporary file and replacing the destination can leave a
     ``.lexneedle-*.tmp`` file beside the destination.
     """
-    if callable(matcher.boundary):
-        raise SerializationError("matchers with callable boundaries cannot be serialized")
+    if callable(matcher.boundary) or matcher.side_boundary is not None:
+        raise SerializationError("matchers with callable boundary policies cannot be serialized")
     payload = {
         "format_version": FORMAT_VERSION,
         "configuration": {
@@ -40,6 +40,7 @@ def save(matcher: Matcher, path: str | Path) -> None:
             "unicode_normalization": matcher.unicode_normalization,
             "boundary": matcher.boundary,
             "strategy": matcher.strategy,
+            "whitespace_equivalent": matcher.whitespace_equivalent,
         },
         "terms": [
             {
@@ -105,18 +106,24 @@ def load(path: str | Path) -> Matcher:
         raise SerializationError("matcher file must contain a JSON object")
     _require_keys(payload, {"format_version", "configuration", "terms"}, "matcher file")
     version = payload["format_version"]
-    if isinstance(version, bool) or not isinstance(version, int) or version != FORMAT_VERSION:
+    if (
+        isinstance(version, bool)
+        or not isinstance(version, int)
+        or version not in {1, FORMAT_VERSION}
+    ):
         raise SerializationError("unsupported matcher format version")
     config = payload["configuration"]
     if not isinstance(config, dict):
         raise SerializationError("configuration must be an object")
-    _require_keys(
-        config, {"case_sensitive", "unicode_normalization", "boundary", "strategy"}, "configuration"
-    )
+    config_keys = {"case_sensitive", "unicode_normalization", "boundary", "strategy"}
+    if version == FORMAT_VERSION:
+        config_keys.add("whitespace_equivalent")
+    _require_keys(config, config_keys, "configuration")
     case_sensitive = config["case_sensitive"]
     normalization = config["unicode_normalization"]
     boundary = config["boundary"]
     strategy = config["strategy"]
+    whitespace_equivalent = config.get("whitespace_equivalent", False)
     if not isinstance(case_sensitive, bool):
         raise SerializationError("configuration.case_sensitive must be a boolean")
     if normalization is not None and not isinstance(normalization, str):
@@ -127,8 +134,15 @@ def load(path: str | Path) -> Matcher:
         raise SerializationError("configuration.unicode_normalization is invalid") from error
     if not isinstance(boundary, str) or boundary not in {"word", "none"}:
         raise SerializationError("configuration.boundary must be 'word' or 'none'")
-    if not isinstance(strategy, str) or strategy not in {"all", "longest", "leftmost_longest"}:
+    if not isinstance(strategy, str) or strategy not in {
+        "all",
+        "longest",
+        "leftmost_longest",
+        "global_longest",
+    }:
         raise SerializationError("configuration.strategy is invalid")
+    if not isinstance(whitespace_equivalent, bool):
+        raise SerializationError("configuration.whitespace_equivalent must be a boolean")
     terms = payload["terms"]
     if not isinstance(terms, list):
         raise SerializationError("terms must be an array")
@@ -140,6 +154,7 @@ def load(path: str | Path) -> Matcher:
             unicode_normalization=cast(Normalization, normalization),
             boundary=boundary,
             strategy=strategy,
+            whitespace_equivalent=whitespace_equivalent,
         )
     except (TypeError, ValueError) as error:
         raise SerializationError("configuration is invalid") from error

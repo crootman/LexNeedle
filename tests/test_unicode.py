@@ -13,6 +13,29 @@ def test_casefolding_handles_sharp_s_and_never_returns_partial_expansion() -> No
     assert matcher.find("ß") == []
 
 
+def test_length_changing_casefold_does_not_shift_later_matches() -> None:
+    matcher = Matcher(boundary="none")
+    matcher.add_many(["strasse", "next"])
+    text = "Straße next"
+
+    assert [(match.text, match.start, match.end) for match in matcher.find(text)] == [
+        ("Straße", 0, 6),
+        ("next", 7, 11),
+    ]
+
+
+def test_combining_character_substring_and_overlapping_extraction() -> None:
+    matcher = Matcher(boundary="none", unicode_normalization="NFC")
+    matcher.add("é")
+
+    assert [
+        (match.text, match.start, match.end) for match in matcher.find("e\u0301é", strategy="all")
+    ] == [
+        ("e\u0301", 0, 2),
+        ("é", 2, 3),
+    ]
+
+
 def test_casefolding_handles_greek_cyrillic_arabic_hebrew_and_devanagari() -> None:
     matcher = Matcher()
     matcher.add_many(["ΜΆΙΟΣ", "\u041c\u041e\u0421\u041a\u0412\u0410", "مرحبا", "שלום", "नमस्ते"])

@@ -2,7 +2,7 @@
 
 from .exceptions import ConfigurationError, SerializationError
 from .match import Match
-from .matcher import Boundary, Matcher, Replacement, Strategy
+from .matcher import Boundary, Matcher, Replacement, SideBoundary, Strategy
 from .normalize import Normalization
 
 __all__ = [
@@ -13,5 +13,6 @@ __all__ = [
     "Normalization",
     "Replacement",
     "SerializationError",
+    "SideBoundary",
     "Strategy",
 ]

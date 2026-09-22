@@ -3,15 +3,37 @@
 from __future__ import annotations
 
 from collections.abc import Iterable, Mapping
+from typing import Literal
 
-from ..matcher import Matcher
+from ..boundaries import Boundary
+from ..matcher import Matcher, Strategy
 
 
 class KeywordProcessor:
     """Support the common FlashText migration API without copying its internals."""
 
-    def __init__(self, case_sensitive: bool = False) -> None:
-        self._matcher = Matcher(case_sensitive=case_sensitive)
+    def __init__(
+        self,
+        case_sensitive: bool = False,
+        *,
+        boundary: Literal["word", "none"] | Boundary = "word",
+        strategy: Strategy = "leftmost_longest",
+        whitespace_equivalent: bool = False,
+    ) -> None:
+        """Create a migration facade with explicit LexNeedle matching options.
+
+        Use ``boundary='none'`` for CJK or substring matching, and
+        ``strategy='all'`` or ``'longest'`` when extraction should retain
+        overlaps. Set ``whitespace_equivalent=True`` to match Unicode
+        whitespace runs as one separator. Existing FlashText-compatible calls
+        keep their defaults.
+        """
+        self._matcher = Matcher(
+            case_sensitive=case_sensitive,
+            boundary=boundary,
+            strategy=strategy,
+            whitespace_equivalent=whitespace_equivalent,
+        )
 
     def __len__(self) -> int:
         return len(self._matcher)
@@ -44,8 +66,11 @@ class KeywordProcessor:
         for aliases in keywords.values():
             self.remove_keywords_from_list(aliases)
 
-    def extract_keywords(self, sentence: str, span_info: bool = False) -> list[object]:
-        matches = self._matcher.find(sentence)
+    def extract_keywords(
+        self, sentence: str, span_info: bool = False, *, strategy: Strategy | None = None
+    ) -> list[object]:
+        """Extract canonical values, optionally with spans and an overlap strategy."""
+        matches = self._matcher.find(sentence, strategy=strategy)
         if span_info:
             return [(match.value, match.start, match.end) for match in matches]
         return [match.value for match in matches]

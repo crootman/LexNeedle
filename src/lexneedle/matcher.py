@@ -8,22 +8,24 @@ from pathlib import Path
 from types import MappingProxyType
 from typing import Literal
 
-from .boundaries import Boundary, no_boundary, word_boundary
+from .boundaries import Boundary, SideBoundary, is_word_character, no_boundary, word_boundary
 from .exceptions import ConfigurationError
 from .match import Match
 from .normalize import (
     Normalization,
     Provenance,
     TransformedText,
+    collapse_whitespace,
+    collapse_whitespace_key,
     transform,
     transform_key,
     validate_normalization,
 )
 from .trie import Term, Trie
 
-type Strategy = Literal["all", "longest", "leftmost_longest"]
+type Strategy = Literal["all", "longest", "leftmost_longest", "global_longest"]
 type Replacement = str | Callable[[Match], str]
-_STRATEGIES = frozenset({"all", "longest", "leftmost_longest"})
+_STRATEGIES = frozenset({"all", "longest", "leftmost_longest", "global_longest"})
 _DEFAULT_VALUE = object()
 
 
@@ -50,6 +52,8 @@ class Matcher:
         unicode_normalization: Normalization = None,
         boundary: Literal["word", "none"] | Boundary = "word",
         strategy: Strategy = "leftmost_longest",
+        side_boundary: SideBoundary | None = None,
+        whitespace_equivalent: bool = False,
     ) -> None:
         validate_normalization(unicode_normalization)
         self._validate_strategy(strategy)
@@ -58,8 +62,16 @@ class Matcher:
         self._case_sensitive = case_sensitive
         self._unicode_normalization = unicode_normalization
         self._strategy = strategy
+        if side_boundary is not None and not callable(side_boundary):
+            raise ConfigurationError("side_boundary must be a callable or None")
+        if side_boundary is not None and boundary != "word":
+            raise ConfigurationError("side_boundary requires boundary='word'")
+        if not isinstance(whitespace_equivalent, bool):
+            raise ConfigurationError("whitespace_equivalent must be a boolean")
         self._boundary_spec = boundary
         self._boundary = self._resolve_boundary(boundary)
+        self._side_boundary = side_boundary
+        self._whitespace_equivalent = whitespace_equivalent
         self._trie = Trie()
         self._keys: dict[str, Term] = {}
 
@@ -86,6 +98,16 @@ class Matcher:
     def boundary(self) -> Literal["word", "none"] | Boundary:
         """The configured boundary policy."""
         return self._boundary_spec
+
+    @property
+    def side_boundary(self) -> SideBoundary | None:
+        """Optional side-aware policy used with the built-in word boundary."""
+        return self._side_boundary
+
+    @property
+    def whitespace_equivalent(self) -> bool:
+        """Whether Unicode whitespace runs match one searchable separator."""
+        return self._whitespace_equivalent
 
     def __contains__(self, keyword: object) -> bool:
         """Return whether *keyword* is registered under this matcher's policy."""
@@ -167,6 +189,39 @@ class Matcher:
         self._trie = Trie()
         self._keys.clear()
 
+    def __getstate__(self) -> dict[str, object]:
+        """Return reconstructible state for standard-library pickle support.
+
+        JSON remains the safe persistence format.  Pickling is intended only
+        for trusted, local process transfer and naturally requires values,
+        metadata, and custom boundary callables to be pickleable themselves.
+        """
+        return {
+            "case_sensitive": self.case_sensitive,
+            "unicode_normalization": self.unicode_normalization,
+            "boundary": self.boundary,
+            "strategy": self.strategy,
+            "side_boundary": self.side_boundary,
+            "whitespace_equivalent": self.whitespace_equivalent,
+            "terms": [
+                (term.keyword, term.value, None if term.metadata is None else dict(term.metadata))
+                for term in self._keys.values()
+            ],
+        }
+
+    def __setstate__(self, state: dict[str, object]) -> None:
+        """Restore trusted pickle state through the normal configuration path."""
+        self.__init__(
+            case_sensitive=state["case_sensitive"],  # ty: ignore[invalid-argument-type]
+            unicode_normalization=state["unicode_normalization"],  # ty: ignore[invalid-argument-type]
+            boundary=state["boundary"],  # ty: ignore[invalid-argument-type]
+            strategy=state["strategy"],  # ty: ignore[invalid-argument-type]
+            side_boundary=state["side_boundary"],  # ty: ignore[invalid-argument-type]
+            whitespace_equivalent=state["whitespace_equivalent"],  # ty: ignore[invalid-argument-type]
+        )
+        for keyword, value, metadata in state["terms"]:  # ty: ignore[not-iterable]
+            self.add(keyword, value, metadata=metadata)
+
     def get(self, keyword: str, default: object | None = None) -> object | None:
         """Return a keyword's canonical value, or *default* when absent."""
         if not isinstance(keyword, str):
@@ -184,7 +239,9 @@ class Matcher:
         ``all`` yields every valid candidate. ``longest`` retains the longest
         candidate at each starting offset, even where candidates overlap.
         ``leftmost_longest`` greedily emits the earliest start and longest span,
-        then skips every overlap; it is the default and replacement strategy.
+        then skips every overlap; it is the default. ``global_longest`` first
+        selects longest candidates globally (breaking ties by source position
+        and keyword), rejects overlaps, and finally returns source order.
 
         Candidates must cover whole transformation groups and re-transform
         their source slice to the transformed match; see the class docstring.
@@ -199,6 +256,8 @@ class Matcher:
         transformed = transform(
             text, normalization=self.unicode_normalization, case_sensitive=self.case_sensitive
         )
+        if self.whitespace_equivalent:
+            transformed = collapse_whitespace(transformed)
         if strategy == "all":
             yield from sorted(
                 self._iter_candidates(text, transformed),
@@ -208,8 +267,10 @@ class Matcher:
             # Canonical reordering can make distinct transformed starts map to
             # the same source start. Resolve this strategy in source space.
             yield from self._longest_per_start(list(self._iter_candidates(text, transformed)))
-        else:
+        elif strategy == "leftmost_longest":
             yield from self._leftmost_longest_source_order(text, transformed)
+        else:
+            yield from self._global_longest(list(self._iter_candidates(text, transformed)))
 
     def find_many(
         self, texts: Iterable[str], *, strategy: Strategy | None = None
@@ -225,10 +286,25 @@ class Matcher:
         *,
         strategy: Strategy | None = None,
     ) -> str:
-        """Replace non-overlapping leftmost-longest matches in *text*.
+        """Replace selected non-overlapping matches in *text*.
 
         Without a callable replacement each canonical value must already be a
         string. This prevents accidental conversion of structured values.
+        """
+        return self.replace_with_matches(text, replacement, strategy=strategy)[0]
+
+    def replace_with_matches(
+        self,
+        text: str,
+        replacement: Replacement | None = None,
+        *,
+        strategy: Strategy | None = None,
+    ) -> tuple[str, list[Match]]:
+        """Replace matches and return ``(result, selected_matches)``.
+
+        Replacement supports only the non-overlapping ``leftmost_longest`` and
+        ``global_longest`` strategies.  Matches are selected once and the same
+        list is returned for diagnostics.
         """
         if (
             replacement is not None
@@ -237,8 +313,10 @@ class Matcher:
         ):
             raise TypeError("replacement must be a string, a callable, or None")
         selected_strategy = self.strategy if strategy is None else strategy
-        if selected_strategy != "leftmost_longest":
-            raise ConfigurationError("replacement requires strategy='leftmost_longest'")
+        if selected_strategy not in {"leftmost_longest", "global_longest"}:
+            raise ConfigurationError(
+                "replacement requires strategy='leftmost_longest' or 'global_longest'"
+            )
         matches = self.find(text, strategy=selected_strategy)
         parts: list[str] = []
         previous_end = 0
@@ -259,7 +337,7 @@ class Matcher:
                 parts.append(value)
             previous_end = match.end
         parts.append(text[previous_end:])
-        return "".join(parts)
+        return "".join(parts), matches
 
     def save(self, path: str | Path) -> None:
         """Save as versioned, lossless JSON using same-directory atomic replacement.
@@ -284,9 +362,10 @@ class Matcher:
         return load(path)
 
     def _key(self, keyword: str) -> str:
-        return transform_key(
+        key = transform_key(
             keyword, normalization=self.unicode_normalization, case_sensitive=self.case_sensitive
         )
+        return collapse_whitespace_key(key) if self.whitespace_equivalent else key
 
     def _iter_candidates(self, source: str, transformed: TransformedText) -> Iterator[Match]:
         extents = self._group_extents(transformed)
@@ -327,7 +406,7 @@ class Matcher:
         source_end = max(item.end for item in provenance)
         if not self._safe_span(source, source_start, source_end):
             return None
-        if not self._boundary(source, source_start) or not self._boundary(source, source_end):
+        if not self._accepts_boundaries(source, source_start, source_end):
             return None
         source_text = source[source_start:source_end]
         transformed_slice = transformed.text[start:end]
@@ -383,6 +462,32 @@ class Matcher:
             by_start.values(), key=lambda match: (match.start, -match.end, match.keyword)
         )
 
+    @staticmethod
+    def _global_longest(candidates: list[Match]) -> Iterator[Match]:
+        selected: list[Match] = []
+        for candidate in sorted(
+            candidates,
+            key=lambda match: (-(match.end - match.start), match.start, match.keyword),
+        ):
+            if all(
+                candidate.end <= match.start or match.end <= candidate.start for match in selected
+            ):
+                selected.append(candidate)
+        yield from sorted(selected, key=lambda match: (match.start, -match.end, match.keyword))
+
+    def _accepts_boundaries(self, source: str, start: int, end: int) -> bool:
+        if self._boundary_spec == "none":
+            return True
+        if self._boundary_spec == "word":
+            if self._side_boundary is not None:
+                return self._side_boundary(source, start, "left") and self._side_boundary(
+                    source, end, "right"
+                )
+            return (start == 0 or not is_word_character(source[start - 1])) and (
+                end == len(source) or not is_word_character(source[end])
+            )
+        return self._boundary(source, start) and self._boundary(source, end)
+
     def _leftmost_longest_source_order(
         self, source: str, transformed: TransformedText
     ) -> Iterator[Match]:
@@ -431,7 +536,9 @@ class Matcher:
     @staticmethod
     def _validate_strategy(strategy: str) -> None:
         if strategy not in _STRATEGIES:
-            raise ConfigurationError("strategy must be 'all', 'longest', or 'leftmost_longest'")
+            raise ConfigurationError(
+                "strategy must be 'all', 'longest', 'leftmost_longest', or 'global_longest'"
+            )
 
 
 def _is_grapheme_extend(character: str) -> bool:

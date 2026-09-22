@@ -24,7 +24,7 @@ from pytest_benchmark.fixture import BenchmarkFixture
 from lexneedle import Match, Matcher
 from lexneedle.normalize import transform
 
-type Strategy = Literal["all", "longest", "leftmost_longest"]
+type Strategy = Literal["all", "longest", "leftmost_longest", "global_longest"]
 type Normalization = Literal["NFC", "NFD", "NFKC", "NFKD"] | None
 
 _SEED = 24_680
@@ -199,12 +199,12 @@ def test_hundreds_character_keyword(benchmark: BenchmarkFixture, workload: str) 
     benchmark(matcher.find, text)
 
 
-@pytest.mark.parametrize("strategy", ["all", "longest", "leftmost_longest"])
+@pytest.mark.parametrize("strategy", ["all", "longest", "leftmost_longest", "global_longest"])
 def test_overlap_strategies(benchmark: BenchmarkFixture, strategy: Strategy) -> None:
     matcher = Matcher(boundary="none")
     matcher.add_many(["a", "ab", "aba", "bab"])
     text = "ababa " * 100
-    expected = {"all": 800, "longest": 400, "leftmost_longest": 200}
+    expected = {"all": 800, "longest": 400, "leftmost_longest": 200, "global_longest": 200}
     assert len(_matches(matcher, text, strategy)) == expected[strategy]
     _record(
         benchmark,
@@ -217,12 +217,12 @@ def test_overlap_strategies(benchmark: BenchmarkFixture, strategy: Strategy) -> 
     benchmark(matcher.find, text, strategy=strategy)
 
 
-@pytest.mark.parametrize("strategy", ["all", "longest", "leftmost_longest"])
+@pytest.mark.parametrize("strategy", ["all", "longest", "leftmost_longest", "global_longest"])
 def test_finditer_strategies(benchmark: BenchmarkFixture, strategy: Strategy) -> None:
     matcher = Matcher(boundary="none")
     matcher.add_many(["a", "ab", "aba", "bab"])
     text = "ababa " * 100
-    expected = {"all": 800, "longest": 400, "leftmost_longest": 200}
+    expected = {"all": 800, "longest": 400, "leftmost_longest": 200, "global_longest": 200}
     assert _consume_finditer(matcher, text, strategy) == expected[strategy]
     _record(
         benchmark,

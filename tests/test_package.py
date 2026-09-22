@@ -16,6 +16,7 @@ def test_public_api_exports_are_importable() -> None:
         "Normalization",
         "Replacement",
         "SerializationError",
+        "SideBoundary",
         "Strategy",
     ]
     for name in lexneedle.__all__:
