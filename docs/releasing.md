@@ -40,6 +40,8 @@ uv run ruff format --check .
 uv run ruff check .
 uv run ty check
 uv run pytest --cov=lexneedle --cov-report=term-missing --cov-fail-under=90
+uv run sphinx-build -W --keep-going -b html docs docs/_build/html
+uv run sphinx-build -W --keep-going -b doctest docs docs/_build/doctest
 uv build --clear
 ```
 
@@ -47,9 +49,9 @@ Validate the distributions and install each one in isolation:
 
 ```shell
 uvx --from twine twine check dist/*
-uv run --isolated --no-project --python 3.14 \
+uv run --isolated --no-project --python 3.12 \
   --with dist/lexneedle-X.Y.Z-py3-none-any.whl tests/smoke_test.py
-uv run --isolated --no-project --python 3.14 \
+uv run --isolated --no-project --python 3.12 \
   --with dist/lexneedle-X.Y.Z.tar.gz tests/smoke_test.py
 ```
 
