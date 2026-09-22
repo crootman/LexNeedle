@@ -43,3 +43,11 @@ def test_replacement_requires_non_overlapping_strategy() -> None:
 
     with pytest.raises(ConfigurationError, match="leftmost_longest"):
         matcher.replace("word")
+
+
+def test_replacement_rejects_unsupported_types_with_a_clear_error() -> None:
+    matcher = Matcher()
+    matcher.add("word", "term")
+
+    with pytest.raises(TypeError, match="string, a callable, or None"):
+        matcher.replace("word", 5)  # ty: ignore[invalid-argument-type]

@@ -1,8 +1,16 @@
 # LexNeedle
 
-Fast, deterministic dictionary matching for Python 3.14+, with zero runtime dependencies.
+Deterministic Unicode-aware dictionary matching for Python 3.14+, with zero
+runtime dependencies.
 
-Install with `uv add lexneedle`.
+LexNeedle has not been published to PyPI yet. Install it from the repository
+until the first release:
+
+```shell
+uv add "git+https://github.com/crootman/LexNeedle"
+```
+
+After publication, `uv add lexneedle` installs the released package.
 
 ```python
 from lexneedle import Matcher
@@ -20,10 +28,14 @@ for match in matcher.find("Panadol 500mg tablets"):
 `Matcher` is case-insensitive by default using locale-independent Unicode
 `casefold()`. It supports `None`, `NFC`, `NFD`, `NFKC`, and `NFKD`
 normalization; normalization occurs before case folding and preserves source
-offsets. The default `boundary="word"` treats Unicode letters, marks, numbers,
-connector punctuation, and joiners as word characters. It is not a full UAX #29
-word segmenter. Use `boundary="none"` for substring matching or pass a callable
-receiving `(text, position)`.
+offsets. A reported match must cover whole normalization contribution groups and
+its source slice must re-transform to the exact transformed match. For example,
+NFC composes `á` in `"a\u0334\u0301"`, but the composed character covers all
+three source code points, so that candidate is intentionally not reported. This
+keeps offsets and re-matching self-consistent. The default `boundary="word"`
+treats Unicode letters, marks, numbers, connector punctuation, and joiners as
+word characters. It is not a full UAX #29 word segmenter. Use `boundary="none"`
+for substring matching or pass a callable receiving `(text, position)`.
 
 The default `leftmost_longest` strategy chooses the earliest match, then the
 longest at that position, and skips overlaps. `all` returns all candidates in
@@ -46,8 +58,10 @@ and then atomically replaces it, so a write failure does not truncate an
 existing file. Saving through a symlink updates its target and preserves an
 existing target's POSIX mode bits; a new file uses mode `0o600` on POSIX,
 subject to the process umask. Saving does not promise ownership or ACL
-preservation, and it is not a power-loss durability guarantee. Metadata is
-copied shallowly and exposed as a read-only outer mapping.
+preservation, and it is not a power-loss durability guarantee; a crash between
+writing the temporary file and replacing the destination can leave a
+`.lexneedle-*.tmp` file beside it. Metadata is copied shallowly and exposed as a
+read-only outer mapping.
 
 For FlashText migrations, `lexneedle.compat.flashtext.KeywordProcessor`
 supports the common keyword add, extract, replace, remove, and lookup methods.
@@ -66,7 +80,9 @@ restored = Matcher.load("terms.json")
 Empty terms and transformed collisions raise `ConfigurationError`. Malformed
 JSON, unsupported values, duplicate fields, and non-finite numbers raise
 `SerializationError`. Membership, lookup, and removal use normalized identity.
-The compatibility facade intentionally omits FlashText fuzzy search, mapping
+`items()` yields `(keyword, value)` pairs and iteration yields keywords, both in
+sorted order, so enumeration never depends on insertion order. The
+compatibility facade intentionally omits FlashText fuzzy search, mapping
 operators, and mutable non-word-boundary sets. It uses LexNeedle's casefolding,
 Unicode boundaries, transformed-collision rejection, and structured internals;
 these differ from FlashText's ASCII boundary and `lower()` behavior.
@@ -76,7 +92,8 @@ of a strict complexity bound. `finditer()` constructs the aligned transformed
 input first, then streams leftmost-longest candidates; it does not provide
 full-input streaming or a bounded-memory guarantee. Offsets count Python code
 points. The matcher protects common combining, spacing-mark, variation-selector,
-and ZWJ edges, but it does not claim full Unicode grapheme segmentation.
+and ZWJ edges by not reporting candidates that would split them, but it does not
+claim full Unicode grapheme segmentation.
 
 ## Benchmarks
 
@@ -100,12 +117,12 @@ Use `uv run --with flashtext pytest benchmarks/test_extract.py
 --benchmark-only` to include FlashText. The regex and FlashText tests use a
 controlled ASCII workload with equivalent case-insensitive word-boundary
 results; they do not establish general Unicode equivalence. No speed claim is
-made. See [architecture notes](docs/architecture.md) and
-[performance review](docs/performance-review.md).
+made. See [architecture notes](docs/architecture.md).
 
 ## Limits
 
 The first release intentionally does not implement full-input streaming,
 frozen concurrent matchers, Aho-Corasick failure links, or memory-optimized
-compiled dictionaries. Benchmarks are supplied as pytest-benchmark workloads;
-they make no speed claim.
+compiled dictionaries. Matchers are not synchronized: do not mutate one while
+another thread reads it; concurrent reads of an unchanged matcher are safe.
+Benchmarks are supplied as pytest-benchmark workloads; they make no speed claim.

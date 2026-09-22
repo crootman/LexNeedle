@@ -98,3 +98,28 @@ def test_very_long_keyword_removal_is_iterative() -> None:
 
     assert matcher.remove(keyword)
     assert matcher.find(keyword) == []
+
+
+def test_iteration_and_items_are_sorted_and_insertion_order_independent() -> None:
+    matcher = Matcher()
+    matcher.add_many({"zebra": 1, "apple": 2, "mango": 3})
+
+    other = Matcher()
+    other.add_many({"mango": 3, "apple": 2, "zebra": 1})
+
+    assert list(matcher) == ["apple", "mango", "zebra"]
+    assert list(matcher.items()) == [("apple", 2), ("mango", 3), ("zebra", 1)]
+    assert list(other.items()) == list(matcher.items())
+
+
+def test_finditer_validates_arguments_before_iteration() -> None:
+    matcher = Matcher()
+    matcher.add("term")
+
+    invalid_text: object = 1
+    with pytest.raises(TypeError, match="text must be a string"):
+        matcher.finditer(invalid_text)  # ty: ignore[invalid-argument-type]
+
+    invalid_strategy = "shortest"
+    with pytest.raises(ConfigurationError, match="strategy"):
+        matcher.finditer("term", strategy=invalid_strategy)  # ty: ignore[invalid-argument-type]

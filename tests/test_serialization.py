@@ -54,6 +54,7 @@ def test_save_supports_a_relative_destination_path(tmp_path, monkeypatch) -> Non
     assert Matcher.load("terms.json").find("term")[0].value == "value"
 
 
+@pytest.mark.skipif(os.name != "posix", reason="POSIX name-length behavior")
 def test_save_and_load_supports_a_near_name_max_filename(tmp_path) -> None:
     path = tmp_path / ("x" * 240 + ".json")
     matcher = Matcher()
@@ -207,6 +208,19 @@ def test_load_rejects_duplicate_json_keys(tmp_path) -> None:
         Matcher.load(path)
 
 
+def test_load_rejects_invalid_utf8(tmp_path) -> None:
+    path = tmp_path / "terms.json"
+    path.write_bytes(b"\xff\xfe\x00")
+
+    with pytest.raises(SerializationError, match="valid JSON"):
+        Matcher.load(path)
+
+
+def test_load_propagates_missing_file_errors(tmp_path) -> None:
+    with pytest.raises(FileNotFoundError):
+        Matcher.load(tmp_path / "missing.json")
+
+
 @pytest.mark.parametrize("value", [float("nan"), float("inf"), {1: "bad"}, ("tuple",), {"set"}])
 def test_save_rejects_lossy_values_without_overwriting_file(tmp_path, value) -> None:
     path = tmp_path / "terms.json"
@@ -245,7 +259,13 @@ def test_json_surrogates_round_trip_without_encoding_the_output_file(tmp_path) -
 
 @pytest.mark.parametrize(
     ("field", "value"),
-    [("boundary", []), ("strategy", []), ("unicode_normalization", "bad"), ("case_sensitive", 1)],
+    [
+        ("boundary", []),
+        ("strategy", []),
+        ("unicode_normalization", "bad"),
+        ("unicode_normalization", "nfc"),
+        ("case_sensitive", 1),
+    ],
 )
 def test_load_rejects_wrong_configuration_types(tmp_path, field, value) -> None:
     path = tmp_path / "terms.json"

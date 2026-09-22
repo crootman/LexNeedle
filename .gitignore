@@ -210,3 +210,5 @@ temp/
 .codex/*
 !.codex/skills/
 !.codex/skills/**
+# Keep macOS Finder metadata out of the re-included skills tree.
+.codex/skills/.DS_Store

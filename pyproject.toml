@@ -6,10 +6,31 @@ readme = "README.md"
 authors = [
     { name = "crootman", email = "5169934+crootman@users.noreply.github.com" }
 ]
+keywords = [
+    "dictionary matching",
+    "keyword extraction",
+    "named entity",
+    "text processing",
+    "trie",
+    "unicode",
+]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3 :: Only",
+    "Programming Language :: Python :: 3.14",
+    "Topic :: Text Processing :: General",
+    "Typing :: Typed",
+]
 license = "MIT"
 license-files = ["LICENSE", "NOTICE.md"]
 requires-python = ">=3.14"
 dependencies = []
+
+[project.urls]
+Repository = "https://github.com/crootman/LexNeedle"
+Issues = "https://github.com/crootman/LexNeedle/issues"
 
 [build-system]
 requires = ["uv_build>=0.12.17,<0.13.0"]
@@ -17,6 +38,7 @@ build-backend = "uv_build"
 
 [dependency-groups]
 dev = [
+    "hypothesis>=6.168.0",
     "pytest>=9.1.1",
     "pytest-benchmark>=5.3.0",
     "pytest-cov>=7.1.0",
@@ -36,6 +58,7 @@ select = ["E", "F", "I", "UP", "B", "SIM", "C4", "PTH", "RUF"]
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 addopts = ["-ra", "--strict-markers", "--strict-config"]
+filterwarnings = ["error"]
 
 [tool.coverage.run]
 branch = true

@@ -1,0 +1,45 @@
+{
+    "folders": [
+        {
+            "path": "."
+        }
+    ],
+    "settings": {
+        "editor.fontFamily": "JetBrains Mono",
+        "editor.fontSize": 13,
+        "editor.lineHeight": 20,
+        "editor.fontLigatures": true,
+        "editor.matchBrackets": "always",
+        "editor.hover.enabled": "on",
+        "editor.rulers": [
+            100
+        ],
+        "editor.formatOnSave": false,
+        "explorer.compactFolders": false,
+        "files.exclude": {
+            "**/__pycache__": true,
+            "**/.hypothesis": true,
+            "**/.pytest_cache": true,
+            "**/.ruff_cache": true,
+            ".coverage": true
+        },
+        "search.exclude": {
+            "**/__pycache__": true,
+            "**/.hypothesis": true,
+            "**/.pytest_cache": true,
+            "**/.ruff_cache": true,
+            ".coverage": true,
+            ".venv": true,
+            "dist": true,
+            "tmp": true
+        },
+        "python.analysis.extraPaths": [
+            "src"
+        ],
+        "chat.disableAIFeatures": true,
+        "chat.agent.enabled": false,
+        "json.schemaDownload.trustedDomains": {
+            "https://app.kilo.ai/config.json": true
+        }
+    }
+}

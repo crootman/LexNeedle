@@ -16,7 +16,7 @@ import tracemalloc
 import unicodedata
 from collections.abc import Callable
 from pathlib import Path
-from typing import Literal, cast
+from typing import Literal
 
 import pytest
 from pytest_benchmark.fixture import BenchmarkFixture
@@ -25,6 +25,7 @@ from lexneedle import Match, Matcher
 from lexneedle.normalize import transform
 
 type Strategy = Literal["all", "longest", "leftmost_longest"]
+type Normalization = Literal["NFC", "NFD", "NFKC", "NFKD"] | None
 
 _SEED = 24_680
 _FAST_SIZES = (10, 100, 1_000)
@@ -283,7 +284,7 @@ def test_case_policy_same_input(benchmark: BenchmarkFixture, case_sensitive: boo
     [(None, 1), ("NFC", 2), ("NFD", 2), ("NFKC", 3), ("NFKD", 3)],
 )
 def test_normalization_matrix(
-    benchmark: BenchmarkFixture, normalization: str | None, expected: int
+    benchmark: BenchmarkFixture, normalization: Normalization, expected: int
 ) -> None:
     text = "cafe\u0301 \uff21\uff22\uff23 \ufb01"
     matcher = Matcher(unicode_normalization=normalization, boundary="none")
@@ -331,16 +332,12 @@ def test_unicode_script_workload(benchmark: BenchmarkFixture) -> None:
 @pytest.mark.parametrize("normalization", [None, "NFC", "NFKC"])
 @pytest.mark.parametrize("case_sensitive", [False, True])
 def test_isolated_alignment_transform(
-    benchmark: BenchmarkFixture, normalization: str | None, case_sensitive: bool
+    benchmark: BenchmarkFixture, normalization: Normalization, case_sensitive: bool
 ) -> None:
     text = "cafe\u0301 \uff21\uff22\uff23 Straße Μάιος " * 200
 
     transformed = transform(text, normalization=normalization, case_sensitive=case_sensitive)
-    expected = (
-        text
-        if normalization is None
-        else unicodedata.normalize(cast(Literal["NFC", "NFD", "NFKC", "NFKD"], normalization), text)
-    )
+    expected = text if normalization is None else unicodedata.normalize(normalization, text)
     if not case_sensitive:
         expected = expected.casefold()
     assert transformed.text == expected
@@ -357,7 +354,7 @@ def test_isolated_alignment_transform(
 @pytest.mark.parametrize("normalization", [None, "NFC", "NFKC"])
 @pytest.mark.parametrize("case_sensitive", [False, True])
 def test_normalized_no_match(
-    benchmark: BenchmarkFixture, normalization: str | None, case_sensitive: bool
+    benchmark: BenchmarkFixture, normalization: Normalization, case_sensitive: bool
 ) -> None:
     text = "cafe\u0301 \uff21\uff22\uff23 Straße Μάιος مرحبا 北京 👩‍💻 " * 200
     matcher = Matcher(

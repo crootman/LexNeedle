@@ -27,8 +27,10 @@ uv build
 ```
 
 Run focused tests while iterating (`uv run pytest tests/test_matching.py`), then
-the full gate. The benchmark suite in `benchmarks/` is opt-in and separate from
-correctness tests; see the README for commands.
+the full gate. Linux CI also enforces
+`uv run pytest --cov=lexneedle --cov-report=term-missing --cov-fail-under=90`.
+The benchmark suite in `benchmarks/` is opt-in and separate from correctness
+tests; see the README for commands.
 
 ## What we look for
 
