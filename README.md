@@ -3,14 +3,21 @@
 Deterministic Unicode-aware dictionary matching for Python 3.14+, with zero
 runtime dependencies.
 
-LexNeedle has not been published to PyPI yet. Install it from the repository
-until the first release:
+## Installation
+
+Install the latest published release from PyPI:
+
+```shell
+uv add lexneedle
+```
+
+To try the unreleased `main` branch instead:
 
 ```shell
 uv add "git+https://github.com/crootman/LexNeedle"
 ```
 
-After publication, `uv add lexneedle` installs the released package.
+## Quick start
 
 ```python
 from lexneedle import Matcher
@@ -138,11 +145,12 @@ Use `uv run --with flashtext pytest benchmarks/test_extract.py
 --benchmark-only` to include FlashText. The regex and FlashText tests use a
 controlled ASCII workload with equivalent case-insensitive word-boundary
 results; they do not establish general Unicode equivalence. No speed claim is
-made. See [architecture notes](docs/architecture.md).
+made. See the
+[architecture notes](https://github.com/crootman/LexNeedle/blob/main/docs/architecture.md).
 
 ## Limits
 
-The first release intentionally does not implement full-input streaming,
+Version 0.1.0 intentionally does not implement full-input streaming,
 frozen concurrent matchers, Aho-Corasick failure links, or memory-optimized
 compiled dictionaries. Matchers are not synchronized: do not mutate one while
 another thread reads it; concurrent reads of an unchanged matcher are safe.

@@ -58,8 +58,9 @@ Open an issue before changing:
 ## Commits
 
 Use short conventional-style messages (`fix:`, `feat:`, `docs:`, `perf:`,
-`test:`), and keep unrelated changes out of the commit. Do not commit
-`.codex/`, `tmp/`, `dist/`, or generated caches.
+`test:`), and keep unrelated changes out of the commit. Do not commit `tmp/`,
+`dist/`, generated caches, or personal Codex configuration. The project-managed
+skills under `.codex/skills/` are intentionally versioned.
 
 ## Releasing
 
