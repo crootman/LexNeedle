@@ -13,6 +13,7 @@ these projects is included.
 
 Input transformation retains source provenance for each output scalar. A match
 must cover whole contribution groups and transform back to its source slice;
-this rejects partial `ß` case-fold expansions. Mutation is unsynchronized: do
-not mutate a matcher while another thread uses it. Streaming, freezing, and
-compact compiled dictionaries remain future work.
+this rejects partial `ß` case-fold expansions and candidates whose normalization
+composes a starter with a later mark across an intervening non-composing mark.
+Mutation is unsynchronized: do not mutate a matcher while another thread uses
+it. Streaming, freezing, and compact compiled dictionaries remain future work.

@@ -35,6 +35,12 @@ class Matcher:
     marks, numbers, connector punctuation, and joiners as word characters; it is
     deliberately not a full UAX #29 word segmenter. Source offsets always index
     the original Python string.
+
+    A reported match must cover whole normalization contribution groups and its
+    source slice must re-transform to the exact transformed match. Candidates
+    that normalization merges with an intervening non-composing mark are
+    therefore not reported, which keeps offsets and re-matching
+    self-consistent.
     """
 
     def __init__(
@@ -170,6 +176,9 @@ class Matcher:
         candidate at each starting offset, even where candidates overlap.
         ``leftmost_longest`` greedily emits the earliest start and longest span,
         then skips every overlap; it is the default and replacement strategy.
+
+        Candidates must cover whole transformation groups and re-transform
+        their source slice to the transformed match; see the class docstring.
         """
         if not isinstance(text, str):
             raise TypeError("text must be a string")

@@ -66,6 +66,17 @@ def test_longest_groups_reordered_candidates_by_original_start() -> None:
     ]
 
 
+def test_composition_across_an_intervening_mark_is_not_reported() -> None:
+    source = "a\u0334\u0301"
+    matcher = Matcher(unicode_normalization="NFC", case_sensitive=True, boundary="none")
+    matcher.add("\u00e1", value="value")
+
+    assert "\u00e1" in transform(source, normalization="NFC", case_sensitive=True).text
+    assert matcher.find(source) == []
+    assert matcher.find(source, strategy="all") == []
+    assert matcher.replace(source, lambda match: "X") == source
+
+
 @pytest.mark.parametrize("case_sensitive", [False, True])
 def test_transform_without_normalization_keeps_exact_provenance(
     case_sensitive: bool,
